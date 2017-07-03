@@ -8,3 +8,4 @@
 *.vdi
 temp.md
 builds/*
+provtower/roles/tower-server/files/license.json
