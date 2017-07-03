@@ -1,0 +1,81 @@
+---
+  - name: get password
+    shell: "cat /etc/profile.d/ansible-tower.sh | grep Password | cut -d ':' -f 2 | cut -d ' ' -f 2"
+    register: tower_password_retrieval
+
+  - name: set Password
+    set_fact:
+      tower_retrieved_password: "{{ tower_password_retrieval.stdout }}"
+
+  - name: copy license file
+    copy:
+      src: license.json
+      dest: /tmp/license
+      owner: root
+      group: root
+      mode: 0600
+
+  - name: upload trial license
+    shell: "curl -X POST -d @/tmp/license -H 'Content-Type: application/json' --insecure --user admin:{{ tower_retrieved_password }} https://10.42.0.42/api/v1/config/"
+
+  - name: create inventory
+    tower_inventory:
+      name: GlusterFS
+      organization: Default
+      state: present
+      tower_host: 10.42.0.42
+      tower_username: admin
+      tower_password: "{{ tower_retrieved_password }}"
+
+  - name: add hosts
+    tower_host:
+      inventory: GlusterFS
+      name: "{{ item }}"
+      state: present
+      tower_host: 10.42.0.42
+      tower_username: admin
+      tower_password: "{{ tower_retrieved_password }}"
+    with_items:
+      - glusterserver1
+      - glusterserver2
+      - glusterserver3
+      - client1
+      - client2
+
+  - name: add project
+    tower_project:
+      description: GlusterFS Ganesha Project from Scorputty (GitHub)
+      name: GlusterFS Ganesha
+      scm_branch: master
+      scm_type: git
+      scm_url: https://github.com/scorputty/vagrant-gluster-test.git
+      state: present
+      tower_host: 10.42.0.42
+      tower_username: admin
+      tower_password: "{{ tower_retrieved_password }}"
+
+  - name: add credential
+    tower_credential:
+      become_method: sudo
+      become_username: root
+      name: vagrant
+      password: vagrant
+      state: present
+      kind: ssh
+      username: vagrant
+
+
+  - name: add template
+    tower_job_template:
+      ask_inventory: true
+      become_enabled: true
+      inventory: GlusterFS
+      job_type: run
+      name: GlusterFS install
+      state: present
+      playbook: site.yml
+      project: GlusterFS Ganesha
+      credential: vagrant
+      tower_host: 10.42.0.42
+      tower_username: admin
+      tower_password: "{{ tower_retrieved_password }}"

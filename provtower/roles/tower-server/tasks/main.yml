@@ -4,3 +4,6 @@
 
   - include: ansible_tower_user.yml
     tags: ansible-tower-user
+
+  - include: ansible-configure.yml
+    tags: ansible-configure
